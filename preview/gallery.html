@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Topo Maker — dev gallery</title>
+<style>
+  body { font: 13px/1.5 -apple-system, Inter, sans-serif; margin: 24px; background: #fafafa; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  #checks { margin: 12px 0 20px; padding: 10px 14px; border-radius: 8px; white-space: pre-line; }
+  #checks.pass { background: #e6f6ec; color: #1a7f3c; }
+  #checks.fail { background: #fdecea; color: #b3261e; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .tile { background: #fff; border: 1px solid #e4e4e4; border-radius: 8px; overflow: hidden; }
+  .tile svg { width: 100%; height: auto; display: block; }
+  .cap { padding: 6px 10px; color: #666; font-size: 11px; border-top: 1px solid #eee; }
+</style>
+</head>
+<body>
+  <h1>Topo Maker — dev gallery</h1>
+  <div id="checks">running checks…</div>
+  <div id="grid"></div>
+
+<script src="../dist/core.iife.js"></script>
+<script>
+  const {
+    generate, compose, DEFAULT_PARAMS, PALETTES, layerFillMap, layerAreas, matchLayers, sameGeometry,
+  } = TopoCore;
+  const styles = ['color', 'lines', 'bw'];
+  const terrains = ['hills', 'ridges', 'peaks', 'flow'];
+
+  const failures = [];
+  let checks = 0;
+  const check = (name, ok) => { checks++; if (!ok) failures.push(name); };
+
+  const pip = (p, poly) => {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[i], b = poly[j];
+      if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  };
+  const inArea = (p, a) => pip(p, a.outer) && !a.holes.some((h) => pip(p, h));
+
+  // Extremes sweep: the last tiles push each knob to an end of its range.
+  const EXTREMES = [
+    { terrain: 'hills', levels: 40, spacing: 'area', smoothing: 3, roughness: 80, style: 'lines', themeId: 'glacier', strokeWidth: 0.75 },
+    { terrain: 'ridges', levels: 6, scale: 600, warp: 0, smoothing: 0, style: 'color', colorStrategy: 'cycle', themeId: 'riso' },
+    { terrain: 'flow', levels: 30, warp: 100, scale: 120, style: 'lines', themeId: 'dusk', majorEvery: 0 },
+    { terrain: 'peaks', levels: 24, roughness: 0, warp: 10, style: 'bw', majorEvery: 4, strokeWidth: 0.5 },
+    { terrain: 'hills', levels: 2, scale: 40, roughness: 100, style: 'color', themeId: 'moss', strokeWidth: 0 },
+    { terrain: 'ridges', levels: 60, scale: 1000, style: 'color', themeId: 'graphite', strokeWidth: 0.5, majorEvery: 10 },
+    // Border and margin: mat + neatline, border only, mat only.
+    { terrain: 'peaks', style: 'color', themeId: 'survey', margin: 28, borderWidth: 3 },
+    { terrain: 'flow', style: 'lines', themeId: 'moss', borderWidth: 8 },
+    { terrain: 'hills', style: 'bw', margin: 40, borderWidth: 1.5 },
+    { terrain: 'ridges', style: 'color', themeId: 'dusk', margin: 20 },
+  ];
+  const BASE = 12;
+  const TILES = BASE + EXTREMES.length;
+  const grid = document.getElementById('grid');
+  let totalMs = 0;
+  let slowest = 0;
+  for (let i = 0; i < TILES; i++) {
+    const params = {
+      ...DEFAULT_PARAMS,
+      width: 480,
+      height: 360,
+      seed: 1000 + i * 77,
+      style: styles[i % 3],
+      terrain: terrains[i % 4],
+      themeId: PALETTES[i % PALETTES.length].id,
+      levels: [10, 14, 18][i % 3],
+      spacing: i % 2 ? 'area' : 'height',
+      warp: [0, 35, 70][i % 3],
+      ...EXTREMES[i - BASE],
+    };
+    const t0 = performance.now();
+    const a = generate(params);
+    const ms = performance.now() - t0;
+    totalMs += ms;
+    slowest = Math.max(slowest, ms);
+    const b = generate(params);
+
+    const tag = `seed ${params.seed} (${params.style}/${params.terrain}/${params.levels})`;
+    check(`determinism ${tag}`, a.svg === b.svg);
+    check(`no NaN ${tag}`, !a.svg.includes('NaN'));
+    const ds = [...a.svg.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
+    check(`closed paths ${tag}`, ds.length > 0 && ds.every((d) => d.trim().endsWith('Z') && d.split('M').slice(1).every((s) => s.trim().endsWith('Z'))));
+    check(`area count ${tag} (${a.areaCount})`, a.areaCount >= Math.min(params.levels, 2) && a.areaCount < 3000);
+    check(`levels drawn ${tag} (${a.levelCount}/${params.levels})`, a.levelCount >= params.levels * 0.7 && a.levelCount <= params.levels);
+    if (params.style === 'lines') check(`lines are stroke-only ${tag}`, !/<path id="area-[^>]* fill="#/.test(a.svg));
+    const hasMat = / id="mat" /.test(a.svg), hasBorder = / id="border" /.test(a.svg);
+    check(`mat only with a margin ${tag}`, hasMat === !!params.margin);
+    check(`border only with a width ${tag}`, hasBorder === !!params.borderWidth);
+    check(`mat and border drawn last ${tag}`, !(hasMat || hasBorder) || a.svg.lastIndexOf('</g>') < a.svg.search(/ id="(mat|border)" /));
+    if (params.style === 'bw') check(`outline fills white ${tag}`, [...a.svg.matchAll(/<path id="(?:area-|mat")[^>]* fill="(#\w+)"/g)].every((m) => m[1] === '#ffffff'));
+
+    // Hole/outer classification: every area of level k+1 sits inside an area of level k.
+    const map = a.map;
+    let nestedOk = true;
+    for (let k = 1; k < map.areas.length && nestedOk; k++) {
+      for (const up of map.areas[k]) {
+        const p = up.outer[0];
+        if (p.x < 0 || p.y < 0 || p.x > params.width || p.y > params.height) continue;
+        if (!map.areas[k - 1].some((low) => inArea(p, low))) { nestedOk = false; break; }
+      }
+    }
+    check(`levels nest inside the level below ${tag}`, nestedOk);
+
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerHTML =
+      a.svg.replace(/width="[\d.]+" height="[\d.]+"/, '') +
+      `<div class="cap">${a.areaCount} areas · ${tag} · ${params.spacing} · scale ${params.scale}` +
+      ` · rough ${params.roughness} · warp ${params.warp} · smooth ${params.smoothing} · ${ms.toFixed(0)}ms</div>`;
+    grid.appendChild(tile);
+  }
+  check(`default params generate under 150ms (slowest tile ${slowest.toFixed(0)}ms)`, (() => {
+    const t0 = performance.now(); generate(DEFAULT_PARAMS); return performance.now() - t0 < 150;
+  })());
+
+  // Restyling never moves terrain: same layer names and same geometry.
+  for (const seed of [7, 8, 9]) {
+    const from = { ...DEFAULT_PARAMS, seed };
+    const restyled = { ...from, style: 'lines', themeId: 'dusk', colorStrategy: 'cycle', strokeWidth: 3, majorEvery: 2 };
+    const a = compose(from), b = compose(restyled);
+    check(`restyle keeps geometry, seed ${seed}`, sameGeometry(from, restyled) &&
+      JSON.stringify(a.areas) === JSON.stringify(b.areas));
+    const names = [...layerFillMap(from).keys()];
+    const m = matchLayers(from, restyled, names);
+    check(`restyle maps every layer to itself, seed ${seed}`, m.size === names.length && names.every((n) => m.get(n) === n));
+  }
+
+  // Border and margin are styling: they never move terrain, and a recolored
+  // Mat/Border survives any update that keeps them on.
+  for (const seed of [31, 32]) {
+    const from = { ...DEFAULT_PARAMS, seed, margin: 30, borderWidth: 4 };
+    const framed = [...layerFillMap(from).keys()];
+    check(`framed map lists Mat and Border layers, seed ${seed}`, framed.includes('Mat') && framed.includes('Border'));
+    const plain = { ...from, margin: 0, borderWidth: 0 };
+    check(`margin and border keep geometry, seed ${seed}`, sameGeometry(from, plain) &&
+      JSON.stringify(compose(from).areas) === JSON.stringify(compose(plain).areas));
+    const wider = { ...from, margin: 60, borderWidth: 10, style: 'bw' };
+    const wm = matchLayers(from, wider, ['Mat', 'Border']);
+    check(`Mat/Border overrides kept across restyle, seed ${seed}`, wm.get('Mat') === 'Mat' && wm.get('Border') === 'Border');
+    const rm = matchLayers(from, { ...from, seed: seed + 500 }, ['Mat', 'Border']);
+    check(`Mat/Border overrides kept across reseed, seed ${seed}`, rm.get('Mat') === 'Mat' && rm.get('Border') === 'Border');
+    const om = matchLayers(from, plain, ['Mat', 'Border']);
+    check(`Mat/Border overrides dropped when turned off, seed ${seed}`, om.size === 0);
+  }
+
+  // Geometry changes: overrides follow their area, each new area claimed once.
+  for (const seed of [21, 22, 23]) {
+    const from = { ...DEFAULT_PARAMS, width: 480, height: 360, seed };
+    const names = [...layerFillMap(from).keys()];
+    const before = layerAreas(from);
+
+    const bigger = { ...from, width: 960, height: 720, scale: from.scale * 2 };
+    const bm = matchLayers(from, bigger, names);
+    const after = layerAreas(bigger);
+    const followed = [...bm].filter(([f, t]) => f !== 'Background').every(([f, t]) =>
+      before.get(f).level === after.get(t).level);
+    check(`resize ×2 (scaled terrain) keeps most overrides, seed ${seed} (${bm.size}/${names.length})`,
+      bm.size >= names.length * 0.8 && followed && bm.get('Background') === 'Background');
+
+    const reseeded = { ...from, seed: seed + 1000 };
+    const rm = matchLayers(from, reseeded, names);
+    check(`reseed claims each area at most once, seed ${seed}`, new Set(rm.values()).size === rm.size);
+
+    const more = { ...from, levels: from.levels * 2 + 1 };
+    const mm = matchLayers(from, more, names);
+    const moreAreas = layerAreas(more);
+    check(`doubling contours maps to the same relative height, seed ${seed}`,
+      [...mm].filter(([f]) => f !== 'Background').every(([f, t]) => moreAreas.get(t).level === before.get(f).level * 2));
+  }
+
+  const el = document.getElementById('checks');
+  if (failures.length === 0) {
+    el.className = 'pass';
+    el.textContent = `✅ all ${checks} checks passed — ${TILES} tiles, ${totalMs.toFixed(0)}ms total generation`;
+  } else {
+    el.className = 'fail';
+    el.textContent = '❌ failures:\n' + failures.join('\n');
+  }
+</script>
+</body>
+</html>

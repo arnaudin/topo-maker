@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #ffffff);
+    --fg: var(--figma-color-text, #1e1e1e);
+    --muted: var(--figma-color-text-secondary, #777);
+    --border: var(--figma-color-border, #e0e0e0);
+    --accent: var(--figma-color-bg-brand, #0d99ff);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 11px/1.4 Inter, 'Helvetica Neue', sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    padding: 12px 12px 0;
+    user-select: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #preview {
+    width: 100%;
+    max-height: 300px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    margin: 0 auto 10px;
+  }
+  #preview svg { width: 100%; height: 100%; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .row label { flex: 0 0 78px; color: var(--muted); }
+  .row input[type='range'] { flex: 1; }
+  .row select, .row input[type='number'] {
+    flex: 1; padding: 3px 6px; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--bg); color: var(--fg); font: inherit;
+    min-width: 0;
+  }
+  .val { flex: 0 0 28px; text-align: right; color: var(--muted); }
+  .seg { display: flex; flex: 1; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .seg button {
+    flex: 1; padding: 4px 0; border: 0; background: transparent;
+    color: var(--fg); font: inherit; cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  #themes { display: flex; gap: 5px; flex: 1; flex-wrap: wrap; }
+  .swatch {
+    width: 30px; height: 22px; border-radius: 4px; cursor: pointer;
+    border: 2px solid transparent; display: flex; overflow: hidden;
+  }
+  .swatch.on { border-color: var(--accent); }
+  .swatch i { flex: 1; }
+  #footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 10px 0 12px;
+  }
+  .actions { display: flex; gap: 8px; }
+  .actions button {
+    flex: 1; padding: 8px 0; border-radius: 6px; font: inherit; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+  }
+  .actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #meta { color: var(--muted); margin-top: 6px; text-align: center; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+  <div id="preview"></div>
+
+  <div class="row"><label>Style</label>
+    <div class="seg" id="style">
+      <button data-v="color" class="on">Colored</button>
+      <button data-v="lines">Lines</button>
+      <button data-v="bw">Outline</button>
+    </div>
+  </div>
+  <div class="row" id="themeRow"><label>Theme</label><div id="themes"></div></div>
+  <div class="row" id="strategyRow"><label>Coloring</label>
+    <div class="seg" id="colorStrategy">
+      <button data-v="ramp" class="on">Elevation ramp</button>
+      <button data-v="cycle">Cycle bands</button>
+    </div>
+  </div>
+  <div class="row"><label>Terrain</label>
+    <select id="terrain">
+      <option value="hills">Rolling hills</option>
+      <option value="ridges">Ridges</option>
+      <option value="peaks">Peaks</option>
+      <option value="flow">Flow</option>
+    </select>
+  </div>
+  <div class="row"><label title="Number of contour lines">Contours</label><input id="levels" type="range" min="2" max="60" step="1" value="14" /><span class="val" id="levelsVal">14</span></div>
+  <div class="row"><label>Spacing</label>
+    <div class="seg" id="spacing">
+      <button data-v="height" class="on" title="Equal elevation steps">Even height</button>
+      <button data-v="area" title="Every band covers about the same area">Even area</button>
+    </div>
+  </div>
+  <div class="row"><label title="Feature size in px: roughly the distance between hills">Scale</label><input id="scale" type="range" min="40" max="1000" step="10" value="220" /><span class="val" id="scaleVal">220</span></div>
+  <div class="row"><label title="Fine detail from extra noise octaves">Roughness</label><input id="roughness" type="range" min="0" max="100" step="1" value="45" /><span class="val" id="roughnessVal">45</span></div>
+  <div class="row"><label title="Swirls and folds the terrain">Warp</label><input id="warp" type="range" min="0" max="100" step="1" value="35" /><span class="val" id="warpVal">35</span></div>
+  <div class="row"><label title="0 = crisp facets, 3 = silky curves">Smoothing</label><input id="smoothing" type="range" min="0" max="3" step="1" value="2" /><span class="val" id="smoothingVal">2</span></div>
+  <div class="row"><label title="Every Nth contour is drawn at double stroke, like a survey map's index lines">Index lines</label><input id="majorEvery" type="range" min="0" max="10" step="1" value="5" /><span class="val" id="majorEveryVal">5</span></div>
+  <div class="row"><label>Stroke</label><input id="strokeWidth" type="range" min="0" max="8" step="0.25" value="1" /><span class="val" id="strokeWidthVal">1</span></div>
+  <div class="row"><label title="Neatline around the map, px">Border</label><input id="borderWidth" type="range" min="0" max="24" step="0.5" value="0" /><span class="val" id="borderWidthVal">Off</span></div>
+  <div class="row"><label title="Paper mat between the frame edge and the map, px">Margin</label><input id="margin" type="range" min="0" max="120" step="2" value="0" /><span class="val" id="marginVal">Off</span></div>
+  <div class="row"><label>Size (px)</label>
+    <input id="width" type="number" min="100" max="4000" step="50" value="800" />
+    <span style="color: var(--muted)">×</span>
+    <input id="height" type="number" min="100" max="4000" step="50" value="600" />
+  </div>
+  <div class="row"><label>Seed</label><input id="seed" type="number" value="12345" /></div>
+
+  <div id="footer">
+    <div class="actions">
+      <button id="shuffle">🎲 Shuffle</button>
+      <button id="insertNew" class="hide" title="Add a new map instead of updating the selected one">Insert new</button>
+      <button id="insert" class="primary">Insert into Figma</button>
+    </div>
+    <div id="meta"></div>
+  </div>
+
+<script>__UI_JS__</script>
+</body>
+</html>
