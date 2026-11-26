@@ -1,0 +1,11 @@
+{
+  "name": "Topo Maker",
+  "id": "601583358154787745",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] },
+  "relaunchButtons": [{ "command": "edit", "name": "Edit topo map" }]
+}
