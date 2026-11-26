@@ -1,4 +1,4 @@
-# Topo Maker — Figma plugin
+# Topo Maker
 
 Generates abstract topographic contour maps as clean vector art. Every elevation area is
 a **closed path** that becomes an individually selectable VectorNode in Figma, grouped by
@@ -24,7 +24,7 @@ pick `manifest.json` in this folder. Run it via Plugins → Development → Topo
     a posterized, striped look).
   - *Lines*: classic contour-line art. Stroke-only paths on the theme's paper color, line
     color ramping with elevation.
-  - *Outline*: black lines on white bands, coloring-book style. Every band is a white
+  - *Outline*: black lines on white bands, for line art. Every band is a white
     area, ready to fill.
 - **Theme**: 7 curated palettes (Survey, Glacier, Dusk, Desert, Moss, Graphite, Riso);
   hidden for Outline. Each has an elevation ramp for Colored and a separate, contrasting
@@ -110,10 +110,10 @@ plus `setRelaunchData({ edit })`. Selecting the frame shows **Edit topo map** in
 properties panel; it reopens the plugin hydrated with that frame's settings. Stale or
 corrupt stored params are coerced by `clampParams()`.
 
-> ⚠️ **Manifest id**: `601583358154787745` is this plugin's permanent id, registered in
-> `../GEOMETRIC-PLUGIN-SPEC.md`. Figma keys relaunch buttons to it, so **never change or
-> reuse it**: a new id orphans every relaunch button already stamped on frames, and a
-> duplicate makes Figma confuse this plugin with another dev plugin.
+> ⚠️ **Manifest id**: `601583358154787745` was made locally for development. Figma issues
+> the real id when the plugin is published; put that one in `manifest.json` and **never
+> change it again**. Plugin data and relaunch buttons are tied to the id, so frames made
+> with an older id lose their stored settings and their **Edit topo map** button.
 
 ## Dev gallery
 
@@ -168,3 +168,16 @@ preview/gallery.html dev gallery + checks
    0.3px), then each outer boundary + its holes is one even-odd path.
 5. **Color.** Geometry and color use separate rng streams
    (`seed` and `seed ^ 0x9e3779b9`), so changing theme or style never moves a contour.
+
+## License and privacy
+
+MIT, see [LICENSE](LICENSE). Everything in `dist/` is built from this repo's `src/`. No
+third-party code is bundled; the only dependencies are build tools (esbuild, TypeScript,
+Figma's type definitions) that never ship. The seeded random number generator is
+Tommy Ettinger's public-domain mulberry32. The listing images in `community/` set their
+text in Inter (SIL Open Font License); the font itself is not included.
+
+The plugin declares no network access and collects nothing: no analytics, no accounts,
+no third-party services. It reads only the current selection (to recognize frames it
+made) and writes only the frames it creates. Each frame carries its own settings as
+plugin data so it can be reopened, and that data stays in the Figma file.

@@ -7,9 +7,7 @@
       "runtimeArgs": [
         "-m",
         "http.server",
-        "8147",
-        "--directory",
-        "/Users/ryanarnaudin/Documents/Claude/topo-maker"
+        "8147"
       ],
       "port": 8147
     }
