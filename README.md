@@ -1,23 +1,35 @@
 # Topo Maker
 
-Generates abstract topographic contour maps as clean vector art. Every elevation area is
-a **closed path** that becomes an individually selectable VectorNode in Figma, grouped by
-contour level, so you can click any area (or a whole level) and recolor it after
-generation.
+![Topo Maker: editable vector topographic maps and contour lines](community/thumbnail.png)
 
-Install it from the Figma Community:
-[figma.com/community/plugin/1707656122544155967](https://www.figma.com/community/plugin/1707656122544155967).
-Try it in the [Topo Maker playground](https://www.figma.com/design/gW6y90WBjZFcdTA3jVQow9).
+**Generate editable vector topo maps and contour lines in Figma.**
 
-## Setup
+[![Figma Community](https://img.shields.io/badge/Figma_Community-Install-0D99FF?logo=figma&logoColor=white)](https://www.figma.com/community/plugin/1707656122544155967)
+[![Playground](https://img.shields.io/badge/Figma-Playground_file-A259FF?logo=figma&logoColor=white)](https://www.figma.com/design/gW6y90WBjZFcdTA3jVQow9)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-```sh
-npm install
-npm run build     # → dist/code.js, dist/ui.html, dist/core.iife.js
-```
+Topo Maker generates abstract topographic contour maps as clean vector art. Every
+elevation area is a **closed path** that becomes an individually selectable VectorNode in
+Figma, grouped by contour level, so you can click any area (or a whole level) and recolor
+it after generation.
 
-Then in **Figma desktop**: Plugins → Development → **Import plugin from manifest…** →
-pick `manifest.json` in this folder. Run it via Plugins → Development → Topo Maker.
+- **Three styles:** Colored elevation bands, classic contour Lines, or an Outline ready to fill.
+- **Four terrains:** rolling hills, ridges, peaks and flow, plus 7 curated themes.
+- **Real vectors:** every band is a closed, even-odd path you can recolor by hand.
+- **Update in place:** change the settings later and keep the colors you picked.
+- **Reproducible:** the same seed and settings always give the same map.
+
+| | |
+|---|---|
+| ![Colored, Lines and Outline styles](community/carousel-1-styles.png) | ![Four terrains](community/carousel-2-terrains.png) |
+| ![Seven themes](community/carousel-3-themes.png) | ![Recolor any area by hand](community/carousel-5-editing.png) |
+
+## Install
+
+- **From the Figma Community:** [Topo Maker](https://www.figma.com/community/plugin/1707656122544155967).
+  Open it in any design file and run it from the Plugins menu.
+- **Try it first:** duplicate the [Topo Maker playground](https://www.figma.com/design/gW6y90WBjZFcdTA3jVQow9).
+- **From source:** see [Development](#development).
 
 ## Using the plugin
 
@@ -118,7 +130,19 @@ corrupt stored params are coerced by `clampParams()`.
 > Plugin data and relaunch buttons are tied to the id, so frames made with another id
 > lose their stored settings and their **Edit topo map** button.
 
-## Dev gallery
+## Development
+
+### Build and import
+
+```sh
+npm install
+npm run build     # → dist/code.js, dist/ui.html, dist/core.iife.js
+```
+
+Then in **Figma desktop**: Plugins → Development → **Import plugin from manifest…** →
+pick `manifest.json` in this folder. Run it via Plugins → Development → Topo Maker.
+
+### Dev gallery
 
 ```sh
 npm run build
@@ -136,7 +160,7 @@ update-in-place matching (restyle = identity, resize ×2 keeps overrides on the 
 level, re-seed claims each area at most once, more contours map to the same relative
 height).
 
-## Architecture
+### Architecture
 
 ```
 src/core/            pure, deterministic, no Figma or DOM
@@ -154,7 +178,7 @@ src/ui/              360px panel; live preview is the exact SVG that gets insert
 preview/gallery.html dev gallery + checks
 ```
 
-### How a map is made
+#### How a map is made
 
 1. **Height field.** A seeded noise function (by terrain) is sampled on a grid
    (~60k samples max) that extends 56px past the frame on every side, then normalized
