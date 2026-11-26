@@ -58,6 +58,43 @@ export function areaShapes(map: TopoMap): AreaShape[] {
   return shapes;
 }
 
+export interface FrameShape {
+  /** "mat" or "border". */
+  id: string;
+  d: string;
+  color: string;
+}
+
+/** Closed even-odd ring between two rects inset `outer` and `inner` px from
+ *  the frame edge. */
+function ringPath(w: number, h: number, outer: number, inner: number): string {
+  const r = (v: number) => String(Math.round(v * 100) / 100);
+  const rect = (i: number) =>
+    `M${r(i)} ${r(i)}L${r(w - i)} ${r(i)}L${r(w - i)} ${r(h - i)}L${r(i)} ${r(h - i)}Z`;
+  return rect(outer) + rect(inner);
+}
+
+/** Mat and neatline, drawn over the map. The mat (frame edge → margin) hides
+ *  the contours that run past the map; the border hugs the map just inside
+ *  the mat, or eats into the map when the margin is narrower than it. Both are
+ *  filled rings, so they recolor like any other area. */
+export function frameShapes(map: TopoMap): FrameShape[] {
+  const { params, palette } = map;
+  const { width: w, height: h, margin, borderWidth: bw } = params;
+  const out: FrameShape[] = [];
+  if (margin > 0) {
+    const color = params.style === 'bw' ? '#ffffff' : palette.lineBg;
+    out.push({ id: 'mat', d: ringPath(w, h, 0, margin), color });
+  }
+  if (bw > 0) {
+    const inner = Math.max(margin, bw);
+    const color =
+      params.style === 'bw' ? '#111111' : params.style === 'lines' ? palette.lines[palette.lines.length - 1] : palette.ink;
+    out.push({ id: 'border', d: ringPath(w, h, inner - bw, inner), color });
+  }
+  return out;
+}
+
 /** "area-01" → "Area 01", "level-03" → "Level 03", "background" → "Background". */
 export function prettyName(id: string): string {
   if (!/^[a-z]+(-([a-z]+|\d+))*$/.test(id)) return id;
@@ -72,12 +109,17 @@ export function layerName(s: Pick<AreaShape, 'group' | 'id'>): string {
   return `${prettyName(s.group)}/${prettyName(s.id)}`;
 }
 
+/** Layers whose color is always their fill, whatever the style. */
+export const FRAME_LAYERS = ['Background', 'Mat', 'Border'];
+
 /** Map of Figma layer path → generated color, matching the names main.ts
- *  produces. The background's is its fill; areas' is the paint channel's. */
+ *  produces. Background, Mat and Border use their fill; areas use the
+ *  paint channel's. */
 export function layerFills(map: TopoMap): Map<string, string> {
   const out = new Map<string, string>();
   out.set('Background', map.colors[0]);
   for (const s of areaShapes(map)) out.set(layerName(s), s.color);
+  for (const f of frameShapes(map)) out.set(prettyName(f.id), f.color);
   return out;
 }
 
@@ -108,6 +150,9 @@ export function toSVG(map: TopoMap, shapes: AreaShape[] = areaShapes(map)): stri
     out.push(`    <path ${attrs.join(' ')}/>`);
   }
   if (open) out.push('  </g>');
+  for (const f of frameShapes(map)) {
+    out.push(`  <path id="${f.id}" d="${f.d}" fill-rule="evenodd" fill="${f.color}"/>`);
+  }
   out.push('</svg>');
   return out.join('\n');
 }

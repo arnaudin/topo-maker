@@ -27,6 +27,12 @@ export interface TopoParams {
   /** Every Nth contour is an index line drawn at double stroke (0 = off). */
   majorEvery: number;
   strokeWidth: number;
+  /** Neatline around the map, px (0 = off). */
+  borderWidth: number;
+  /** Paper mat between the frame edge and the map, px (0 = off). The terrain
+   *  still fills the whole frame; the mat covers its edge, so changing the
+   *  margin never moves a contour. */
+  margin: number;
   style: StyleId;
   themeId: string;
   /** Colored only: 'ramp' = smooth elevation gradient, 'cycle' = repeat the
@@ -47,6 +53,8 @@ export const DEFAULT_PARAMS: TopoParams = {
   smoothing: 2,
   majorEvery: 5,
   strokeWidth: 1,
+  borderWidth: 0,
+  margin: 0,
   style: 'color',
   themeId: 'survey',
   colorStrategy: 'ramp',
@@ -79,9 +87,13 @@ export function clampParams(p: TopoParams): TopoParams {
   const num = (v: unknown, d: number) => (typeof v === 'number' && isFinite(v) ? v : d);
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
   const D = DEFAULT_PARAMS;
+  const width = clamp(Math.round(num(p.width, D.width)), 100, 4000);
+  const height = clamp(Math.round(num(p.height, D.height)), 100, 4000);
+  // Keep at least half of the shorter side visible as map.
+  const maxEdge = Math.min(width, height) / 4;
   return {
-    width: clamp(Math.round(num(p.width, D.width)), 100, 4000),
-    height: clamp(Math.round(num(p.height, D.height)), 100, 4000),
+    width,
+    height,
     terrain: TERRAINS.some((t) => t.id === p.terrain) ? p.terrain : D.terrain,
     levels: clamp(Math.round(num(p.levels, D.levels)), 2, 60),
     spacing: p.spacing === 'area' ? 'area' : 'height',
@@ -91,6 +103,8 @@ export function clampParams(p: TopoParams): TopoParams {
     smoothing: clamp(Math.round(num(p.smoothing, D.smoothing)), 0, 3),
     majorEvery: clamp(Math.round(num(p.majorEvery, D.majorEvery)), 0, 20),
     strokeWidth: clamp(num(p.strokeWidth, D.strokeWidth), 0, 8),
+    borderWidth: clamp(num(p.borderWidth, D.borderWidth), 0, Math.min(40, maxEdge)),
+    margin: clamp(num(p.margin, D.margin), 0, Math.min(200, maxEdge)),
     style: p.style === 'lines' || p.style === 'bw' ? p.style : 'color',
     themeId: PALETTES.some((x) => x.id === p.themeId) ? p.themeId : D.themeId,
     colorStrategy: p.colorStrategy === 'cycle' ? 'cycle' : 'ramp',

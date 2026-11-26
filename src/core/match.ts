@@ -1,6 +1,6 @@
 import { Area, clampParams, compose, TopoMap, TopoParams } from './composer';
 import { Point, pointInPoly } from './contours';
-import { areaShapes, layerName } from './svg';
+import { areaShapes, frameShapes, layerName, prettyName } from './svg';
 
 /** Params that move contours. Everything else (style, theme, coloring,
  *  stroke, index lines) restyles the same areas under the same layer names. */
@@ -97,8 +97,11 @@ export function matchLayers(
   const out = new Map<string, string>();
   const toMap = compose(to);
   const toAreas = areasOf(toMap);
+  // Background always exists; Mat and Border only while they're turned on.
+  // Neither moves with the terrain, so they keep their own names.
+  const fixed = new Set(['Background', ...frameShapes(toMap).map((f) => prettyName(f.id))]);
   if (sameGeometry(from, to)) {
-    for (const n of wanted) if (n === 'Background' || toAreas.has(n)) out.set(n, n);
+    for (const n of wanted) if (fixed.has(n) || toAreas.has(n)) out.set(n, n);
     return out;
   }
   const a = clampParams(from);
@@ -115,7 +118,7 @@ export function matchLayers(
   }
   const pairs: { from: string; to: string; d: number }[] = [];
   for (const n of wanted) {
-    if (n === 'Background') {
+    if (fixed.has(n)) {
       out.set(n, n);
       continue;
     }

@@ -1,5 +1,5 @@
 import { compose, TopoMap, TopoParams } from './composer';
-import { areaShapes, layerFills, paintChannel, prettyName, toSVG } from './svg';
+import { areaShapes, FRAME_LAYERS, layerFills, paintChannel, prettyName, toSVG } from './svg';
 
 export { clampParams, compose, DEFAULT_PARAMS } from './composer';
 export type { Area, ColorStrategy, Spacing, StyleId, TopoMap, TopoParams } from './composer';
@@ -9,7 +9,7 @@ export { getPalette, PALETTES } from './palettes';
 export type { Palette } from './palettes';
 export { TERRAINS } from './terrain';
 export type { TerrainId } from './terrain';
-export { paintChannel, prettyName };
+export { FRAME_LAYERS, paintChannel, prettyName };
 
 export interface GenerateResult {
   svg: string;

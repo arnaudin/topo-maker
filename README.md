@@ -48,6 +48,13 @@ pick `manifest.json` in this folder. Run it via Plugins → Development → Topo
   on a survey map (*Off* at 0).
 - **Stroke**: line width (0 = no strokes in Colored; Lines and Outline keep a minimum
   hairline so they never vanish).
+- **Border**: a neatline around the map, in px (*Off* at 0). It's drawn in the theme's
+  ink (black in Outline, the top line color in Lines). With a margin it sits just
+  inside the mat, hugging the map; without one it runs along the frame edge.
+- **Margin**: a paper mat between the frame edge and the map, in px (*Off* at 0),
+  in the theme's paper color (white in Outline). The terrain still fills the whole
+  frame and the mat covers its edge, so changing the margin or border never moves a
+  contour. Both are capped at a quarter of the shorter side.
 - **Size / Seed / 🎲 Shuffle**: same seed + params always reproduces the same map.
 - **Insert into Figma** places the frame at the viewport center as `Topo <seed>`, with
   the background rect locked (unlock it in the Layers panel to recolor it).
@@ -62,6 +69,8 @@ Topo 12345              ← frame, clips content
     Area 02
   Level 02
     …
+  Mat                   ← only with a margin: even-odd ring, frame edge → map
+  Border                ← only with a border: even-odd ring around the map
 ```
 
 Levels stack bottom to top, so each band you see is "this level minus the next one up".
@@ -76,7 +85,7 @@ While a generated frame (or anything inside it) is selected, the button becomes
 over manual color overrides (any area or background whose fill, or stroke in Lines style,
 differs from what the frame's stored settings generated):
 
-- *Style, theme, coloring, stroke, index lines* only restyle the same areas, so each
+- *Style, theme, coloring, stroke, index lines, border, margin* only restyle the same areas, so each
   override goes back on the same layer (`Level 03/Area 02` → `Level 03/Area 02`).
 - *Size, terrain, contours, spacing, scale, roughness, warp, smoothing, seed* reshape
   the map, so area numbers can point at different shapes. Each override's area gets an
@@ -85,7 +94,8 @@ differs from what the frame's stored settings generated):
   that level that contains the anchor, or else the nearest one within about 12% of the
   frame diagonal. Each new area takes at most one override (closest first).
 - Switching to or from *Lines* moves the override between fill and stroke.
-- A recolored background is always kept. The notification says how many overrides were
+- A recolored background is always kept, and so are a recolored Mat and Border while
+  they're still turned on. The notification says how many overrides were
   kept, e.g. *Kept 5 of 7 colors you changed by hand; 2 had no matching area.*
 - While a frame is selected, an *Insert new* button also appears, for when you want a
   second map rather than replacing the selected one.
@@ -112,11 +122,13 @@ npm run build
 python3 -m http.server 8147   # then open http://localhost:8147/preview/gallery.html
 ```
 
-(or start the `topo-gallery` server from `.claude/launch.json`). It renders 18 tiles
+(or start the `topo-gallery` server from `.claude/launch.json`). It renders 22 tiles
 across styles × terrains × themes, plus extremes of every knob, and runs automated checks
 with a pass/fail banner: determinism, every subpath closed with `Z`, no `NaN`, area and
-level counts, Lines stroke-only, Outline all-white, **every level nests inside the level
-below it** (validates the hole/outer classification), default-params speed, and
+level counts, Lines stroke-only, Outline all-white, Mat/Border present only when
+turned on and drawn on top, **every level nests inside the level
+below it** (validates the hole/outer classification), default-params speed, border and margin
+never moving terrain, and
 update-in-place matching (restyle = identity, resize ×2 keeps overrides on the same
 level, re-seed claims each area at most once, more contours map to the same relative
 height).

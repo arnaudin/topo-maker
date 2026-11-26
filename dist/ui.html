@@ -109,6 +109,8 @@
   <div class="row"><label title="0 = crisp facets, 3 = silky curves">Smoothing</label><input id="smoothing" type="range" min="0" max="3" step="1" value="2" /><span class="val" id="smoothingVal">2</span></div>
   <div class="row"><label title="Every Nth contour is drawn at double stroke, like a survey map's index lines">Index lines</label><input id="majorEvery" type="range" min="0" max="10" step="1" value="5" /><span class="val" id="majorEveryVal">5</span></div>
   <div class="row"><label>Stroke</label><input id="strokeWidth" type="range" min="0" max="8" step="0.25" value="1" /><span class="val" id="strokeWidthVal">1</span></div>
+  <div class="row"><label title="Neatline around the map, px">Border</label><input id="borderWidth" type="range" min="0" max="24" step="0.5" value="0" /><span class="val" id="borderWidthVal">Off</span></div>
+  <div class="row"><label title="Paper mat between the frame edge and the map, px">Margin</label><input id="margin" type="range" min="0" max="120" step="2" value="0" /><span class="val" id="marginVal">Off</span></div>
   <div class="row"><label>Size (px)</label>
     <input id="width" type="number" min="100" max="4000" step="50" value="800" />
     <span style="color: var(--muted)">×</span>
@@ -613,6 +615,8 @@
     smoothing: 2,
     majorEvery: 5,
     strokeWidth: 1,
+    borderWidth: 0,
+    margin: 0,
     style: "color",
     themeId: "survey",
     colorStrategy: "ramp",
@@ -622,9 +626,12 @@
     const num = (v, d) => typeof v === "number" && isFinite(v) ? v : d;
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     const D = DEFAULT_PARAMS;
+    const width = clamp(Math.round(num(p.width, D.width)), 100, 4e3);
+    const height = clamp(Math.round(num(p.height, D.height)), 100, 4e3);
+    const maxEdge = Math.min(width, height) / 4;
     return {
-      width: clamp(Math.round(num(p.width, D.width)), 100, 4e3),
-      height: clamp(Math.round(num(p.height, D.height)), 100, 4e3),
+      width,
+      height,
       terrain: TERRAINS.some((t) => t.id === p.terrain) ? p.terrain : D.terrain,
       levels: clamp(Math.round(num(p.levels, D.levels)), 2, 60),
       spacing: p.spacing === "area" ? "area" : "height",
@@ -634,6 +641,8 @@
       smoothing: clamp(Math.round(num(p.smoothing, D.smoothing)), 0, 3),
       majorEvery: clamp(Math.round(num(p.majorEvery, D.majorEvery)), 0, 20),
       strokeWidth: clamp(num(p.strokeWidth, D.strokeWidth), 0, 8),
+      borderWidth: clamp(num(p.borderWidth, D.borderWidth), 0, Math.min(40, maxEdge)),
+      margin: clamp(num(p.margin, D.margin), 0, Math.min(200, maxEdge)),
       style: p.style === "lines" || p.style === "bw" ? p.style : "color",
       themeId: PALETTES.some((x) => x.id === p.themeId) ? p.themeId : D.themeId,
       colorStrategy: p.colorStrategy === "cycle" ? "cycle" : "ramp",
@@ -762,6 +771,26 @@
     });
     return shapes;
   }
+  function ringPath(w, h, outer, inner) {
+    const r = (v) => String(Math.round(v * 100) / 100);
+    const rect = (i) => `M${r(i)} ${r(i)}L${r(w - i)} ${r(i)}L${r(w - i)} ${r(h - i)}L${r(i)} ${r(h - i)}Z`;
+    return rect(outer) + rect(inner);
+  }
+  function frameShapes(map) {
+    const { params, palette } = map;
+    const { width: w, height: h, margin, borderWidth: bw } = params;
+    const out = [];
+    if (margin > 0) {
+      const color = params.style === "bw" ? "#ffffff" : palette.lineBg;
+      out.push({ id: "mat", d: ringPath(w, h, 0, margin), color });
+    }
+    if (bw > 0) {
+      const inner = Math.max(margin, bw);
+      const color = params.style === "bw" ? "#111111" : params.style === "lines" ? palette.lines[palette.lines.length - 1] : palette.ink;
+      out.push({ id: "border", d: ringPath(w, h, inner - bw, inner), color });
+    }
+    return out;
+  }
   function toSVG(map, shapes = areaShapes(map)) {
     const { params } = map;
     const lines = params.style === "lines";
@@ -785,6 +814,9 @@
       out.push(`    <path ${attrs.join(" ")}/>`);
     }
     if (open) out.push("  </g>");
+    for (const f of frameShapes(map)) {
+      out.push(`  <path id="${f.id}" d="${f.d}" fill-rule="evenodd" fill="${f.color}"/>`);
+    }
     out.push("</svg>");
     return out.join("\n");
   }
@@ -831,9 +863,10 @@
     $("themeRow").classList.toggle("hide", state.style === "bw");
     $("strategyRow").classList.toggle("hide", state.style !== "color");
   }
+  var OFF_AT_ZERO = ["majorEvery", "borderWidth", "margin"];
   function showValue(id, value) {
     const val = document.getElementById(`${id}Val`);
-    if (val) val.textContent = id === "majorEvery" && Number(value) === 0 ? "Off" : value;
+    if (val) val.textContent = OFF_AT_ZERO.includes(id) && Number(value) === 0 ? "Off" : value;
   }
   function setSeg(id, value) {
     $(id).querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === value));
@@ -849,7 +882,9 @@
     "warp",
     "smoothing",
     "majorEvery",
-    "strokeWidth"
+    "strokeWidth",
+    "borderWidth",
+    "margin"
   ];
   function applyState() {
     for (const id of [...SLIDERS, "width", "height", "seed"]) {

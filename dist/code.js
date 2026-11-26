@@ -469,6 +469,8 @@
     smoothing: 2,
     majorEvery: 5,
     strokeWidth: 1,
+    borderWidth: 0,
+    margin: 0,
     style: "color",
     themeId: "survey",
     colorStrategy: "ramp",
@@ -478,9 +480,12 @@
     const num = (v, d) => typeof v === "number" && isFinite(v) ? v : d;
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     const D = DEFAULT_PARAMS;
+    const width = clamp(Math.round(num(p.width, D.width)), 100, 4e3);
+    const height = clamp(Math.round(num(p.height, D.height)), 100, 4e3);
+    const maxEdge = Math.min(width, height) / 4;
     return {
-      width: clamp(Math.round(num(p.width, D.width)), 100, 4e3),
-      height: clamp(Math.round(num(p.height, D.height)), 100, 4e3),
+      width,
+      height,
       terrain: TERRAINS.some((t) => t.id === p.terrain) ? p.terrain : D.terrain,
       levels: clamp(Math.round(num(p.levels, D.levels)), 2, 60),
       spacing: p.spacing === "area" ? "area" : "height",
@@ -490,6 +495,8 @@
       smoothing: clamp(Math.round(num(p.smoothing, D.smoothing)), 0, 3),
       majorEvery: clamp(Math.round(num(p.majorEvery, D.majorEvery)), 0, 20),
       strokeWidth: clamp(num(p.strokeWidth, D.strokeWidth), 0, 8),
+      borderWidth: clamp(num(p.borderWidth, D.borderWidth), 0, Math.min(40, maxEdge)),
+      margin: clamp(num(p.margin, D.margin), 0, Math.min(200, maxEdge)),
       style: p.style === "lines" || p.style === "bw" ? p.style : "color",
       themeId: PALETTES.some((x) => x.id === p.themeId) ? p.themeId : D.themeId,
       colorStrategy: p.colorStrategy === "cycle" ? "cycle" : "ramp",
@@ -621,6 +628,26 @@
     });
     return shapes;
   }
+  function ringPath(w, h, outer, inner) {
+    const r = (v) => String(Math.round(v * 100) / 100);
+    const rect = (i) => `M${r(i)} ${r(i)}L${r(w - i)} ${r(i)}L${r(w - i)} ${r(h - i)}L${r(i)} ${r(h - i)}Z`;
+    return rect(outer) + rect(inner);
+  }
+  function frameShapes(map) {
+    const { params, palette } = map;
+    const { width: w, height: h, margin, borderWidth: bw } = params;
+    const out = [];
+    if (margin > 0) {
+      const color = params.style === "bw" ? "#ffffff" : palette.lineBg;
+      out.push({ id: "mat", d: ringPath(w, h, 0, margin), color });
+    }
+    if (bw > 0) {
+      const inner = Math.max(margin, bw);
+      const color = params.style === "bw" ? "#111111" : params.style === "lines" ? palette.lines[palette.lines.length - 1] : palette.ink;
+      out.push({ id: "border", d: ringPath(w, h, inner - bw, inner), color });
+    }
+    return out;
+  }
   function prettyName(id) {
     if (!/^[a-z]+(-([a-z]+|\d+))*$/.test(id)) return id;
     return id.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
@@ -628,10 +655,12 @@
   function layerName(s) {
     return `${prettyName(s.group)}/${prettyName(s.id)}`;
   }
+  var FRAME_LAYERS = ["Background", "Mat", "Border"];
   function layerFills(map) {
     const out = /* @__PURE__ */ new Map();
     out.set("Background", map.colors[0]);
     for (const s of areaShapes(map)) out.set(layerName(s), s.color);
+    for (const f of frameShapes(map)) out.set(prettyName(f.id), f.color);
     return out;
   }
 
@@ -704,8 +733,9 @@
     const out = /* @__PURE__ */ new Map();
     const toMap = compose(to);
     const toAreas = areasOf(toMap);
+    const fixed = /* @__PURE__ */ new Set(["Background", ...frameShapes(toMap).map((f) => prettyName(f.id))]);
     if (sameGeometry(from, to)) {
-      for (const n of wanted) if (n === "Background" || toAreas.has(n)) out.set(n, n);
+      for (const n of wanted) if (fixed.has(n) || toAreas.has(n)) out.set(n, n);
       return out;
     }
     const a = clampParams(from);
@@ -722,7 +752,7 @@
     }
     const pairs = [];
     for (const n of wanted) {
-      if (n === "Background") {
+      if (fixed.has(n)) {
         out.set(n, n);
         continue;
       }
@@ -752,7 +782,7 @@
 
   // src/main.ts
   var PARAMS_KEY = "topo-params";
-  figma.showUI(__html__, { width: 360, height: 700, themeColors: true });
+  figma.showUI(__html__, { width: 360, height: 740, themeColors: true });
   function prettify(node) {
     node.name = prettyName(node.name);
     if ("children" in node) {
@@ -806,7 +836,7 @@
     return map;
   }
   function channelOf(key, params) {
-    return key === "Background" ? "fill" : paintChannel(params);
+    return FRAME_LAYERS.includes(key) ? "fill" : paintChannel(params);
   }
   function readPaints(node, channel) {
     if (channel === "fill") return "fills" in node ? node.fills : null;

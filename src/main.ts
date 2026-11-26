@@ -1,9 +1,9 @@
 /// <reference types="@figma/plugin-typings" />
-import { layerFillMap, matchLayers, paintChannel, prettyName, TopoParams } from './core';
+import { FRAME_LAYERS, layerFillMap, matchLayers, paintChannel, prettyName, TopoParams } from './core';
 
 const PARAMS_KEY = 'topo-params';
 
-figma.showUI(__html__, { width: 360, height: 700, themeColors: true });
+figma.showUI(__html__, { width: 360, height: 740, themeColors: true });
 
 function prettify(node: BaseNode): void {
   node.name = prettyName(node.name);
@@ -72,10 +72,10 @@ function leafMap(root: SceneNode): Map<string, SceneNode> {
   return map;
 }
 
-/** The paint that carries a layer's color: the background's fill always;
- *  areas' fill, or stroke in Lines style. */
+/** The paint that carries a layer's color: Background, Mat and Border use
+ *  their fill always; areas their fill, or stroke in Lines style. */
 function channelOf(key: string, params: TopoParams): 'fill' | 'stroke' {
-  return key === 'Background' ? 'fill' : paintChannel(params);
+  return FRAME_LAYERS.includes(key) ? 'fill' : paintChannel(params);
 }
 
 function readPaints(node: SceneNode, channel: 'fill' | 'stroke'): readonly Paint[] | typeof figma.mixed | null {

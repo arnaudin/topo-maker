@@ -40,10 +40,13 @@ function render(): void {
   $('strategyRow').classList.toggle('hide', state.style !== 'color');
 }
 
-/** Slider readout; zero index lines reads as "Off". */
+/** Sliders where zero turns the feature off. */
+const OFF_AT_ZERO = ['majorEvery', 'borderWidth', 'margin'];
+
+/** Slider readout; zero on an optional feature reads as "Off". */
 function showValue(id: string, value: string): void {
   const val = document.getElementById(`${id}Val`);
-  if (val) val.textContent = id === 'majorEvery' && Number(value) === 0 ? 'Off' : value;
+  if (val) val.textContent = OFF_AT_ZERO.includes(id) && Number(value) === 0 ? 'Off' : value;
 }
 
 type SegId = 'style' | 'colorStrategy' | 'spacing';
@@ -69,6 +72,8 @@ const SLIDERS = [
   'smoothing',
   'majorEvery',
   'strokeWidth',
+  'borderWidth',
+  'margin',
 ] as const;
 
 /** Push current state into every control (hydrate from a selected frame). */

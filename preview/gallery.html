@@ -50,6 +50,11 @@
     { terrain: 'peaks', levels: 24, roughness: 0, warp: 10, style: 'bw', majorEvery: 4, strokeWidth: 0.5 },
     { terrain: 'hills', levels: 2, scale: 40, roughness: 100, style: 'color', themeId: 'moss', strokeWidth: 0 },
     { terrain: 'ridges', levels: 60, scale: 1000, style: 'color', themeId: 'graphite', strokeWidth: 0.5, majorEvery: 10 },
+    // Border and margin: mat + neatline, border only, mat only.
+    { terrain: 'peaks', style: 'color', themeId: 'survey', margin: 28, borderWidth: 3 },
+    { terrain: 'flow', style: 'lines', themeId: 'moss', borderWidth: 8 },
+    { terrain: 'hills', style: 'bw', margin: 40, borderWidth: 1.5 },
+    { terrain: 'ridges', style: 'color', themeId: 'dusk', margin: 20 },
   ];
   const BASE = 12;
   const TILES = BASE + EXTREMES.length;
@@ -84,8 +89,12 @@
     check(`closed paths ${tag}`, ds.length > 0 && ds.every((d) => d.trim().endsWith('Z') && d.split('M').slice(1).every((s) => s.trim().endsWith('Z'))));
     check(`area count ${tag} (${a.areaCount})`, a.areaCount >= Math.min(params.levels, 2) && a.areaCount < 3000);
     check(`levels drawn ${tag} (${a.levelCount}/${params.levels})`, a.levelCount >= params.levels * 0.7 && a.levelCount <= params.levels);
-    if (params.style === 'lines') check(`lines are stroke-only ${tag}`, !/<path[^>]* fill="#/.test(a.svg));
-    if (params.style === 'bw') check(`outline fills white ${tag}`, [...a.svg.matchAll(/<path[^>]* fill="(#\w+)"/g)].every((m) => m[1] === '#ffffff'));
+    if (params.style === 'lines') check(`lines are stroke-only ${tag}`, !/<path id="area-[^>]* fill="#/.test(a.svg));
+    const hasMat = / id="mat" /.test(a.svg), hasBorder = / id="border" /.test(a.svg);
+    check(`mat only with a margin ${tag}`, hasMat === !!params.margin);
+    check(`border only with a width ${tag}`, hasBorder === !!params.borderWidth);
+    check(`mat and border drawn last ${tag}`, !(hasMat || hasBorder) || a.svg.lastIndexOf('</g>') < a.svg.search(/ id="(mat|border)" /));
+    if (params.style === 'bw') check(`outline fills white ${tag}`, [...a.svg.matchAll(/<path id="(?:area-|mat")[^>]* fill="(#\w+)"/g)].every((m) => m[1] === '#ffffff'));
 
     // Hole/outer classification: every area of level k+1 sits inside an area of level k.
     const map = a.map;
@@ -121,6 +130,24 @@
     const names = [...layerFillMap(from).keys()];
     const m = matchLayers(from, restyled, names);
     check(`restyle maps every layer to itself, seed ${seed}`, m.size === names.length && names.every((n) => m.get(n) === n));
+  }
+
+  // Border and margin are styling: they never move terrain, and a recolored
+  // Mat/Border survives any update that keeps them on.
+  for (const seed of [31, 32]) {
+    const from = { ...DEFAULT_PARAMS, seed, margin: 30, borderWidth: 4 };
+    const framed = [...layerFillMap(from).keys()];
+    check(`framed map lists Mat and Border layers, seed ${seed}`, framed.includes('Mat') && framed.includes('Border'));
+    const plain = { ...from, margin: 0, borderWidth: 0 };
+    check(`margin and border keep geometry, seed ${seed}`, sameGeometry(from, plain) &&
+      JSON.stringify(compose(from).areas) === JSON.stringify(compose(plain).areas));
+    const wider = { ...from, margin: 60, borderWidth: 10, style: 'bw' };
+    const wm = matchLayers(from, wider, ['Mat', 'Border']);
+    check(`Mat/Border overrides kept across restyle, seed ${seed}`, wm.get('Mat') === 'Mat' && wm.get('Border') === 'Border');
+    const rm = matchLayers(from, { ...from, seed: seed + 500 }, ['Mat', 'Border']);
+    check(`Mat/Border overrides kept across reseed, seed ${seed}`, rm.get('Mat') === 'Mat' && rm.get('Border') === 'Border');
+    const om = matchLayers(from, plain, ['Mat', 'Border']);
+    check(`Mat/Border overrides dropped when turned off, seed ${seed}`, om.size === 0);
   }
 
   // Geometry changes: overrides follow their area, each new area claimed once.
