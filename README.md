@@ -5,6 +5,10 @@ a **closed path** that becomes an individually selectable VectorNode in Figma, g
 contour level, so you can click any area (or a whole level) and recolor it after
 generation.
 
+Install it from the Figma Community:
+[figma.com/community/plugin/1707656122544155967](https://www.figma.com/community/plugin/1707656122544155967).
+Try it in the [Topo Maker playground](https://www.figma.com/design/gW6y90WBjZFcdTA3jVQow9).
+
 ## Setup
 
 ```sh
@@ -110,10 +114,9 @@ plus `setRelaunchData({ edit })`. Selecting the frame shows **Edit topo map** in
 properties panel; it reopens the plugin hydrated with that frame's settings. Stale or
 corrupt stored params are coerced by `clampParams()`.
 
-> ⚠️ **Manifest id**: `601583358154787745` was made locally for development. Figma issues
-> the real id when the plugin is published; put that one in `manifest.json` and **never
-> change it again**. Plugin data and relaunch buttons are tied to the id, so frames made
-> with an older id lose their stored settings and their **Edit topo map** button.
+> **Plugin id**: `1707656122544155967`, issued by Figma at publish. **Never change it.**
+> Plugin data and relaunch buttons are tied to the id, so frames made with another id
+> lose their stored settings and their **Edit topo map** button.
 
 ## Dev gallery
 

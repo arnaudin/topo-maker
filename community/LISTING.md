@@ -1,5 +1,9 @@
 # Topo Maker: Figma Community listing
 
+**Status:** published Nov 26, 2026 at
+[figma.com/community/plugin/1707656122544155967](https://www.figma.com/community/plugin/1707656122544155967).
+Playground: [Topo Maker playground](https://www.figma.com/design/gW6y90WBjZFcdTA3jVQow9).
+
 Paste-ready copy for the Publish plugin modal (Figma desktop > Plugins > Manage plugins >
 ⋯ next to Topo Maker > Publish). Images are in this folder; regenerate them with
 `python3 community/render.py` after `npm run build`.
@@ -83,10 +87,10 @@ Optional, worth adding later:
 - **Carousel 6:** a real Figma screenshot of a generated frame selected, with the
   **Edit topo map** button visible in the properties panel. Only a real capture can show
   it.
-- **Playground file:** a Figma file with Getting started steps, a frame to try, and
-  examples. Insert the "Try it out" frame with the **published** plugin, after the
-  manifest id switch (see §5), so its Edit topo map button works for people who open
-  the file.
+- **Playground file:** done, see the link at the top. Getting started steps, a "Try it
+  out" slot and six examples. Insert the "Try it out" map with the **published** plugin,
+  so its Edit topo map button works for people who open the file, then delete the
+  dashed box and the yellow note.
 
 ## 3. Data security (optional form)
 
@@ -111,8 +115,7 @@ The form's wording may vary; these are the facts to answer from:
 
 - **Publish to:** Community
 - **Publish as:** yourself (or your team)
-- **Support contact:** `https://github.com/arnaudin/topo-maker/issues` once the repo is
-  public, or a support email
+- **Support contact:** `https://github.com/arnaudin/topo-maker/issues`
 - **Network access label:** confirm it shows *No access to network*
 - **Comments:** allow (recommended for a free plugin; it's where people post requests)
 
@@ -122,12 +125,9 @@ The form's wording may vary; these are the facts to answer from:
 2. **Build is current:** `npm run build` if `src/` changed since the last build.
 3. **Test in Figma desktop:** insert a map, select it, click **Edit topo map**, change a
    setting, and **Update selected** after recoloring an area by hand.
-4. **⚠️ Manifest id switch.** Our id `601583358154787745` was made locally, and Figma
-   has to issue the real one during publishing. Then:
-   - Put the Figma-issued id in `manifest.json` > `id`, and **never change it again**.
-   - Frames you made during development are tied to the old id. Plugin data is private
-     to the plugin id that wrote it, so the published plugin can't read their settings
-     and their **Edit topo map** button won't work. Regenerate any frames you want to
-     keep editable using the published version.
+4. **Plugin id.** Figma issued `1707656122544155967` at publish, and it's in
+   `manifest.json`. **Never change it.** Frames made during development used a local id,
+   so the published plugin can't read their settings and their **Edit topo map** button
+   won't work. Regenerate any frames you want to keep editable with the published version.
 5. Upload images, paste copy, submit. Figma reviews Community plugins before listing.
    The data-security answers are reviewed separately and can take up to two weeks.
